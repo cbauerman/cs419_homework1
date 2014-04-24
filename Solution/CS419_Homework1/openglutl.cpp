@@ -6,7 +6,7 @@ static char* readShaderSource(const char* shaderFile)
 {
 	std::ifstream file(shaderFile, std::ifstream::binary);
 
-	if( file == NULL )
+	if(!file)
 		return NULL;
 
 	//fseek(fp, 0L, SEEK_END);

@@ -1,3 +1,5 @@
+#version 430
+
 in  vec4 vPosition;
 in  vec3 vNormal;
 in  vec3 vTangent;
@@ -14,8 +16,8 @@ uniform vec4 LightPosition, Eye;
 void main() 
 {   
 	//create our tangent space vectors
-	vec3 N = normalize(ModelView * Trans * vec4(vNormal, 0.0));
-	vec3 T = normalize(ModelView * Trans * vec4(vTangent, 0.0));
+	vec3 N = normalize(ModelView * Trans * vec4(vNormal, 0.0)).xyz;
+	vec3 T = normalize(ModelView * Trans * vec4(vTangent, 0.0)).xyz;
 	vec3 B = cross(N, T);
 
 	// find our normal positions for the eye and light

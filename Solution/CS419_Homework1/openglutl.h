@@ -1,10 +1,12 @@
 #ifndef __OPENGL_UTIL__
 #define __OPENGL_UTIL__
 
+#define GLFW_INCLUDE_GLU
 #define GLEW_STATIC
-#include <glew.h>
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 #include <cstdlib>
-#include <GL/glut.h>
+
 
 #ifndef M_PI
 #  define M_PI  3.14159265358979323846

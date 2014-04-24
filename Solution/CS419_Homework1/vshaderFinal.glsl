@@ -1,5 +1,7 @@
-in  vec4 vPosition;
-in  vec3 vNormal;
+#version 430
+
+in vec4 vPosition;
+in vec3 vNormal;
 
 out vec3 N;
 out vec3 E;

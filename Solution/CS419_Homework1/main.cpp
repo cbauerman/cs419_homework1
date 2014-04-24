@@ -75,9 +75,9 @@ bool buttonHeld = false;
 int mode = 0; //default mode
 
 bool bump = true;
-bool rotateCube = false;
+bool rotateCube = true;
 bool rotateWithCube = false;
-int cubeMode = 0;
+int cubeMode = 2;
 
 //menu ids
 int top_menu;
@@ -168,6 +168,17 @@ particle particles[TextureSize][TextureSize];
 
 //moving texture
 #pragma endregion
+
+//GLFW functions
+static void error_callback(int error, const char* description)
+{
+	fputs(description, stderr);
+}
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GL_TRUE);
+}
 
 //for random numbers
 float Ranf( float low, float high )
@@ -464,7 +475,7 @@ void menu(int id)
 		rotateWithCube = !rotateWithCube;
 	}
 
-	glutPostRedisplay();
+	//TODO glutPostRedisplay();
 }
 
 // OpenGL initialization
@@ -496,31 +507,31 @@ void init()
 
 	glClearColor( 1.0, 1.0, 1.0, 1.0 );
 
-	rot_menu = glutCreateMenu(menu);
-	glutAddMenuEntry("X"                   , 0);
-	glutAddMenuEntry("Y"                   , 1);
-	glutAddMenuEntry("Z"                   , 2);
+	//rot_menu = glutCreateMenu(menu);
+	//glutAddMenuEntry("X"                   , 0);
+	//glutAddMenuEntry("Y"                   , 1);
+	//glutAddMenuEntry("Z"                   , 2);
 
-	scene_menu = glutCreateMenu(menu);
-	glutAddSubMenu  ("Rotation"            , rot_menu);
-	glutAddMenuEntry("Translation"         , 3);
-	glutAddMenuEntry("Dolly"               , 4);
-	glutAddMenuEntry("Default Camera"      , 5);
+	//scene_menu = glutCreateMenu(menu);
+	//glutAddSubMenu  ("Rotation"            , rot_menu);
+	//glutAddMenuEntry("Translation"         , 3);
+	//glutAddMenuEntry("Dolly"               , 4);
+	//glutAddMenuEntry("Default Camera"      , 5);
 
-	bump_cube_menu =  glutCreateMenu(menu);
-	glutAddMenuEntry("Auto-Rotate Cube"    , 6);
-	glutAddMenuEntry("Rotate camera with Cube", 12);
-	glutAddMenuEntry("Default Cube"        , 7);
-	glutAddMenuEntry("Checkerboard Cube"   , 8);
-	glutAddMenuEntry("Random Noise Cube"   , 9);
-	glutAddMenuEntry("\"Water\" Cube"      , 10);
+	//bump_cube_menu =  glutCreateMenu(menu);
+	//glutAddMenuEntry("Auto-Rotate Cube"    , 6);
+	//glutAddMenuEntry("Rotate camera with Cube", 12);
+	//glutAddMenuEntry("Default Cube"        , 7);
+	//glutAddMenuEntry("Checkerboard Cube"   , 8);
+	//glutAddMenuEntry("Random Noise Cube"   , 9);
+	//glutAddMenuEntry("\"Water\" Cube"      , 10);
 
-	top_menu = glutCreateMenu(menu);
-	glutAddSubMenu  ("Scene Transformation", scene_menu  );
-	glutAddSubMenu	("Cube Options"        , bump_cube_menu  );
-	glutAddMenuEntry("Close"               , 11);
+	//top_menu = glutCreateMenu(menu);
+	//glutAddSubMenu  ("Scene Transformation", scene_menu  );
+	//glutAddSubMenu	("Cube Options"        , bump_cube_menu  );
+	//glutAddMenuEntry("Close"               , 11);
 
-	glutAttachMenu(GLUT_RIGHT_BUTTON);
+	//glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
 //GLUT display function
@@ -554,79 +565,79 @@ void display()
 	glDrawArrays(GL_TRIANGLES, 0 , NumVertices);
 
 	glBindVertexArray(0);
-	glutSwapBuffers();
+	
 }
 
 //GLUT keyboard function
-void keyboard( unsigned char key, int x, int y )
-{
-	switch( key ) 
-	{
-		case 033: // Escape Key
-		case 'q': 
-		case 'Q':
-			exit( EXIT_SUCCESS );
-			break;
-		case 'b':
-		case 'B':
-			bump = !bump;
-			resetData();
-			break;
-	}
-			
-	glutPostRedisplay();
-}
+//void keyboard( unsigned char key, int x, int y )
+//{
+//	switch( key ) 
+//	{
+//		case 033: // Escape Key
+//		case 'q': 
+//		case 'Q':
+//			exit( EXIT_SUCCESS );
+//			break;
+//		case 'b':
+//		case 'B':
+//			bump = !bump;
+//			resetData();
+//			break;
+//	}
+//			
+//	glutPostRedisplay();
+//}
 	
 //GLUT reshape function
-void reshape(int w, int h)
-{
-	glViewport(0,0, w, h);
-	float ar = (float)(w)/h, startAr = (float)screenWidth/screenHeight;
-
-	screenWidth = w;
-	screenHeight = h;
-
-	if(projType == PERSPEC)
-	{
-		proj = Perspective(fovy, ar, zpNear, zpFar);
-	}
-	else
-	{
-		if(ar < startAr)
-			proj = Ortho(left, right, left * (GLfloat)h/(GLfloat)w, right * (GLfloat)h/(GLfloat)w, zoNear, zoFar);
-		else
-			proj = Ortho(bottom  * (GLfloat)w/(GLfloat)h, top  * (GLfloat)w/(GLfloat)h, bottom, top, zoNear, zoFar);
-
-	}
-
-	//update our shader uniforms
-	for(unsigned i = 0; i < programs.size(); ++i)
-		switchShaders(i);
-
-
-
-	glutPostRedisplay();
-}
+//void reshape(int w, int h)
+//{
+//	glViewport(0,0, w, h);
+//	float ar = (float)(w)/h, startAr = (float)screenWidth/screenHeight;
+//
+//	screenWidth = w;
+//	screenHeight = h;
+//
+//	if(projType == PERSPEC)
+//	{
+//		proj = Perspective(fovy, ar, zpNear, zpFar);
+//	}
+//	else
+//	{
+//		if(ar < startAr)
+//			proj = Ortho(left, right, left * (GLfloat)h/(GLfloat)w, right * (GLfloat)h/(GLfloat)w, zoNear, zoFar);
+//		else
+//			proj = Ortho(bottom  * (GLfloat)w/(GLfloat)h, top  * (GLfloat)w/(GLfloat)h, bottom, top, zoNear, zoFar);
+//
+//	}
+//
+//	//update our shader uniforms
+//	for(unsigned i = 0; i < programs.size(); ++i)
+//		switchShaders(i);
+//
+//
+//
+//	
+//}
 
 //GLUT mouse function
-void mouse( int button, int state, int x, int y)
-{
-	y = screenHeight - y;
-
-	
-	if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
-		buttonHeld = true;
-	else
-		buttonHeld = false;
-
-
-	xPrev = x;
-	yPrev = y;
-
-	glutPostRedisplay();
-
-	
-}
+//void mouse( int button, int state, int x, int y)
+//{
+//	y = screenHeight - y;
+//
+//	
+//	if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+//		buttonHeld = true;
+//	else
+//		buttonHeld = false;
+//
+//
+//	xPrev = x;
+//	yPrev = y;
+//
+//	
+//
+//	
+//}
 
 //GLUT mouseMotion function
 void mouseMotion(int x, int y)
@@ -669,14 +680,13 @@ void mouseMotion(int x, int y)
 	xPrev = x;
 	yPrev = y;
 
-	glutPostRedisplay();
 }
 
 //for cube rotation and water cube effects
 void idle()
 {
 	if(rotateCube) {
-		ct = RotateY(0.05) * ct;
+		ct = RotateY(0.005) * ct;
 
 		if(rotateWithCube) {
 			ms = RotateY(0.05) * ms ;
@@ -708,26 +718,52 @@ void idle()
 		genNormals();
 	} 
 
-	glutPostRedisplay();
 }
 
 //main function
 int main( int argc, char **argv )
 {
-	glutInit( &argc, argv );
-	glutInitDisplayMode( GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH );
-	glutInitWindowSize( screenWidth, screenHeight );
-	glutCreateWindow( "Caleb Bauermeister : Final" );
-	glewInit();
+
+	GLFWwindow* window;
+
+	glfwSetErrorCallback(error_callback);
+
+	if (!glfwInit())
+		exit(EXIT_FAILURE);
+
+	window = glfwCreateWindow(640, 640, "Caleb B : Homework 1", NULL, NULL);
+
+	if (!window)
+	{
+		glfwTerminate();
+		exit(EXIT_FAILURE);
+	}
+
+	glfwMakeContextCurrent(window);
+	glfwSetKeyCallback(window, key_callback);
+
+
+	GLint GlewInitResult = glewInit();
+	if (GLEW_OK != GlewInitResult)
+	{
+		printf("ERROR: %s\n", glewGetErrorString(GlewInitResult));
+		exit(EXIT_FAILURE);
+	}
+	
 	init();
 
-	glutDisplayFunc ( display  );
-	glutKeyboardFunc( keyboard );
-	glutReshapeFunc ( reshape  );
-	glutMouseFunc   ( mouse     );
-	glutMotionFunc  ( mouseMotion     );
-	glutIdleFunc    ( idle );
+	while (!glfwWindowShouldClose(window)){
 
-	glutMainLoop();
-	return 0;
+
+		idle();
+		display();
+
+		glfwSwapBuffers(window);
+		glfwPollEvents();
+	}
+
+
+	glfwDestroyWindow(window);
+	glfwTerminate();
+	exit(EXIT_SUCCESS);
 }

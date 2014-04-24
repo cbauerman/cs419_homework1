@@ -1,3 +1,5 @@
+#version 430
+
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
 uniform float Shininess;
 

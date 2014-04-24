@@ -1,3 +1,5 @@
+#version 430
+
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
 uniform float Shininess;
 
@@ -13,7 +15,7 @@ out vec4 fragColor;
 void main()
 {
 	//unpack out normal from bump map
-	vec3 N = texture2D(textureBump, texCoord);
+	vec3 N = texture2D(textureBump, texCoord).xyz;
 	vec3 fN = normalize( 2.0 * N - 1.0);
 
 	vec3 fL = normalize(L);
