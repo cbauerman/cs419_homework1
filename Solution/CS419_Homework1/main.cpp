@@ -260,18 +260,6 @@ void genNormals()
 
 }
 
-//create a single side of the cube
-void quad(int a, int b, int c, int d, int e, int f)
-{
-	static int index = 0;
-	points[index] = vertices[a]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2( 0.0, 0.0);
-	points[index] = vertices[b]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2( 0.0, 1.0);
-	points[index] = vertices[c]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2( 1.0, 1.0);
-	points[index] = vertices[a]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2( 0.0, 0.0);
-	points[index] = vertices[c]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2( 1.0, 1.0);
-	points[index] = vertices[d]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2( 1.0, 0.0);
-}
-
 //used to switch between cube modes i.e. "checkerboard", "random noise" and "water cube"
 void resetData()
 {
@@ -328,71 +316,8 @@ void resetData()
 	genNormals();
 }
 
-//setup the cube vaos and vbos
-void genCube()
-{
-	//create cube data
-	quad( 1, 0, 3, 2, 2, 4);
-	quad( 2, 3, 7, 6, 0, 4);
-	quad( 3, 0, 4, 7, 4, 3);
-	quad( 6, 5, 1, 2, 1, 0);
-	quad( 4, 5, 6, 7, 5, 1);
-	quad( 5, 4, 0, 1, 3, 4);
-	//create texture data
-	resetData();
-	//this is the default color texture
-	glActiveTexture( GL_TEXTURE0 );
-	glGenTextures(1, &textureCube);
-	glBindTexture( GL_TEXTURE_2D, textureCube);
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//and this is our bump map
-	glActiveTexture( GL_TEXTURE1 );
-	glGenTextures(1, &textureBump);
-	glBindTexture( GL_TEXTURE_2D, textureBump);
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, bumpNormals);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//we will use the "texture shader" to draw the cube
-	switchShaders(1);
 
-	glGenVertexArrays(1, &cubeVao);
-	glBindVertexArray(cubeVao);
-
-	GLuint buffer;
-	glGenBuffers(1, &buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(points) + sizeof(normals) + sizeof(tex_coord) + sizeof(tangents), NULL, GL_STATIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(points), points);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points), sizeof(normals), normals);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points) + sizeof(normals), sizeof(tex_coord), tex_coord);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points) + sizeof(normals) + sizeof(tex_coord), sizeof(tangents), tangents);
-
-	GLuint vPosition = glGetAttribLocation (programs[1], "vPosition" );
-	glEnableVertexAttribArray(vPosition);
-	glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, 0 );
-
-	GLuint vNormal = glGetAttribLocation (programs[1], "vNormal" );
-	glEnableVertexAttribArray(vNormal);
-	glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points)) );
-
-	GLuint vTexCoord = glGetAttribLocation (programs[1], "vTexCoord" );
-	glEnableVertexAttribArray(vTexCoord);
-	glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points) + sizeof(normals)) );
-
-	GLuint vTangents = glGetAttribLocation (programs[1], "vTangent" );
-	glEnableVertexAttribArray(vTangents);
-	glVertexAttribPointer(vTangents, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points) + sizeof(normals) + sizeof(tex_coord)));
-
-	glUniform1i( glGetUniformLocation(programs[1], "textureColor"), 0);
-	glUniform1i( glGetUniformLocation(programs[1], "textureBump"), 1);
-
-}
+//TODO get these arguemetns sorted out
 
 vec4 genPoint(int i, int j, int m, int n){
 	return vec4(sin(M_PI * (j / m)) * cos(2 * M_PI * (i / n)),
@@ -408,12 +333,35 @@ void genLayer(int i, int n, int m, int r)
 	static int index = 0;
 	//points[index] = vertices[a]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2(0.0, 0.0);
 	for (int j = 1; j <= m; ++j){
-		points[index++] = genPoint(i, j + 1, m, n);
-		points[index++] = genPoint(i, j + 1, m, n);
-		points[index++] = genPoint(i, j, m, n);
-		points[index++] = genPoint(i, j + 2, m, n);
-		points[index++] = genPoint(i, j, m, n);
-		points[index++] = genPoint(i, j, m, n);
+		/*
+		 +---+\   Build a triangle segment of the sphere
+		  \  | \
+		   \+---+		
+		*/
+		points[index] = genPoint(i + 1, j, m, n);
+		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z)); 
+		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2, 
+								  .5 - asin(-normals[index].y)/M_PI);
+		points[index] = genPoint(i, j, m, n);
+		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
+		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
+			.5 - asin(-normals[index].y) / M_PI);
+		points[index] = genPoint(i, j - 1, m, n);
+		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
+		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
+			.5 - asin(-normals[index].y) / M_PI);
+		points[index] = genPoint(i + 1, j + 1, m, n);
+		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
+		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
+			.5 - asin(-normals[index].y) / M_PI);
+		points[index] = genPoint(i, j, m, n);
+		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
+		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
+			.5 - asin(-normals[index].y) / M_PI);
+		points[index] = genPoint(i, j - 1, m, n);
+		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
+		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
+			.5 - asin(-normals[index].y) / M_PI);
 	}
 
 
@@ -422,7 +370,7 @@ void genLayer(int i, int n, int m, int r)
 void genSphere(int m, int n, int r)
 {
 	//create sphere data;
-	int NumVertices = 2 * n * m - 2 * n;
+	int NumVertices = 2 * n * m;
 
 	points = new vec4[NumVertices];
 	normals = new vec3[NumVertices];
@@ -433,58 +381,63 @@ void genSphere(int m, int n, int r)
 		genLayer(i, n, m, r);
 	}
 	//create texture data
-	resetData();
+	//resetData();
 	//this is the default color texture
-	glActiveTexture(GL_TEXTURE0);
-	glGenTextures(1, &textureCube);
-	glBindTexture(GL_TEXTURE_2D, textureCube);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//and this is our bump map
-	glActiveTexture(GL_TEXTURE1);
-	glGenTextures(1, &textureBump);
-	glBindTexture(GL_TEXTURE_2D, textureBump);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, bumpNormals);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glActiveTexture(GL_TEXTURE0);
+	//glGenTextures(1, &textureCube);
+	//glBindTexture(GL_TEXTURE_2D, textureCube);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	////and this is our bump map
+	//glActiveTexture(GL_TEXTURE1);
+	//glGenTextures(1, &textureBump);
+	//glBindTexture(GL_TEXTURE_2D, textureBump);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, bumpNormals);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	//we will use the "texture shader" to draw the cube
-	switchShaders(1);
+	//switchShaders(0);
 
 	glGenVertexArrays(1, &cubeVao);
 	glBindVertexArray(cubeVao);
 
+
+	int sizeof_points = NumVertices * sizeof(vec4);
+	int sizeof_normals = NumVertices * sizeof(vec3);
+	int sizeof_tex = NumVertices * sizeof(vec2);
+
 	GLuint buffer;
 	glGenBuffers(1, &buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(points)+sizeof(normals)+sizeof(tex_coord)+sizeof(tangents), NULL, GL_STATIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(points), points);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points), sizeof(normals), normals);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points)+sizeof(normals), sizeof(tex_coord), tex_coord);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points)+sizeof(normals)+sizeof(tex_coord), sizeof(tangents), tangents);
+	glBufferData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals, NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof_points, points);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points, sizeof_normals, normals);
+	//glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals, sizeof_tex, tex_coord);
+	//glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals+sizeof_tex, sizeof(tangents), tangents);
 
-	GLuint vPosition = glGetAttribLocation(programs[1], "vPosition");
+	GLuint vPosition = glGetAttribLocation(programs[0], "vPosition");
 	glEnableVertexAttribArray(vPosition);
 	glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
-	GLuint vNormal = glGetAttribLocation(programs[1], "vNormal");
+	GLuint vNormal = glGetAttribLocation(programs[0], "vNormal");
 	glEnableVertexAttribArray(vNormal);
-	glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points)));
+	glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points));
 
-	GLuint vTexCoord = glGetAttribLocation(programs[1], "vTexCoord");
-	glEnableVertexAttribArray(vTexCoord);
-	glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points)+sizeof(normals)));
+	//GLuint vTexCoord = glGetAttribLocation(programs[0], "vTexCoord");
+	//glEnableVertexAttribArray(vTexCoord);
+	//glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals));
 
-	GLuint vTangents = glGetAttribLocation(programs[1], "vTangent");
-	glEnableVertexAttribArray(vTangents);
-	glVertexAttribPointer(vTangents, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points)+sizeof(normals)+sizeof(tex_coord)));
+	//GLuint vTangents = glGetAttribLocation(programs[1], "vTangent");
+	//glEnableVertexAttribArray(vTangents);
+	//glVertexAttribPointer(vTangents, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals+sizeof_tex));
 
-	glUniform1i(glGetUniformLocation(programs[1], "textureColor"), 0);
-	glUniform1i(glGetUniformLocation(programs[1], "textureBump"), 1);
+	//glUniform1i(glGetUniformLocation(programs[0], "textureColor"), 0);
+	//glUniform1i(glGetUniformLocation(programs[0], "textureBump"), 1);
 
 }
 
@@ -580,8 +533,8 @@ void init()
 	GLuint programTemp = InitShader( "vshaderFinal.glsl", "fshaderFinal.glsl");
 	programs.push_back(programTemp);
 
-	programTemp = InitShader( "vshaderFinalTexture.glsl", "fshaderFinalTexture.glsl");
-	programs.push_back(programTemp);
+	//programTemp = InitShader( "vshaderFinalTexture.glsl", "fshaderFinalTexture.glsl");
+	//programs.push_back(programTemp);
 
 	//calculate matrices
 	ms = identity();
@@ -595,7 +548,7 @@ void init()
 		proj = Perspective(fovy, aspect, zpNear, zpFar);
 
 	genPlane();
-	genCube();
+	genSphere(20, 20, 1);
 
 	glEnable( GL_DEPTH_TEST );
 	glShadeModel(GL_FLAT);
@@ -649,7 +602,7 @@ void display()
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	switchShaders(1);
+	switchShaders(0);
 	glBindVertexArray(cubeVao);
 	glUniform4fv( AmbientProduct,  1, LIGHTAMB  );
 	glUniform4fv( DiffuseProduct,  1, LIGHTDIF  );
