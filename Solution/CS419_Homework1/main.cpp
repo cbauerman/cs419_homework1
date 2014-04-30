@@ -77,7 +77,7 @@ int mode = 0; //default mode
 bool bump = true;
 bool rotateCube = true;
 bool rotateWithCube = false;
-int cubeMode = 2;
+int cubeMode = 0;
 
 //menu ids
 int top_menu;
@@ -122,14 +122,14 @@ point4 lightPos =  point4( 0.0, 0.0, 2.0, 1.0 );
 GLuint textureBump;
 GLuint textureCube;
 
-const int NumVertices = 36;
+int NumVertices = 0;
 const int TextureSize = 128;
 vec3 image[TextureSize][TextureSize];
 
-vec4 points[NumVertices];
-vec3 normals[NumVertices];
-vec3 tangents[NumVertices];
-vec2 tex_coord[NumVertices];
+vec4 *points;
+vec3 *normals;
+vec3 *tangents;
+vec2 *tex_coord;
 
 vec3 bumpNormals[TextureSize][TextureSize];
 
@@ -393,6 +393,101 @@ void genCube()
 	glUniform1i( glGetUniformLocation(programs[1], "textureBump"), 1);
 
 }
+
+vec4 genPoint(int i, int j, int m, int n){
+	return vec4(sin(M_PI * (j / m)) * cos(2 * M_PI * (i / n)),
+				sin(M_PI * (j / m)) * sin(2 * M_PI * (i / n)),
+				cos(M_PI * (j / m)),
+				1.0);
+}
+
+
+//create a single side of the cube
+void genLayer(int i, int n, int m, int r)
+{
+	static int index = 0;
+	//points[index] = vertices[a]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2(0.0, 0.0);
+	for (int j = 1; j <= m; ++j){
+		points[index++] = genPoint(i, j + 1, m, n);
+		points[index++] = genPoint(i, j + 1, m, n);
+		points[index++] = genPoint(i, j, m, n);
+		points[index++] = genPoint(i, j + 2, m, n);
+		points[index++] = genPoint(i, j, m, n);
+		points[index++] = genPoint(i, j, m, n);
+	}
+
+
+}
+
+void genSphere(int m, int n, int r)
+{
+	//create sphere data;
+	int NumVertices = 2 * n * m - 2 * n;
+
+	points = new vec4[NumVertices];
+	normals = new vec3[NumVertices];
+	tangents = new vec3[NumVertices];
+	tex_coord = new vec2[NumVertices];
+
+	for (int i = 0; i < n - 1; ++i){
+		genLayer(i, n, m, r);
+	}
+	//create texture data
+	resetData();
+	//this is the default color texture
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &textureCube);
+	glBindTexture(GL_TEXTURE_2D, textureCube);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//and this is our bump map
+	glActiveTexture(GL_TEXTURE1);
+	glGenTextures(1, &textureBump);
+	glBindTexture(GL_TEXTURE_2D, textureBump);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, bumpNormals);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//we will use the "texture shader" to draw the cube
+	switchShaders(1);
+
+	glGenVertexArrays(1, &cubeVao);
+	glBindVertexArray(cubeVao);
+
+	GLuint buffer;
+	glGenBuffers(1, &buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(points)+sizeof(normals)+sizeof(tex_coord)+sizeof(tangents), NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(points), points);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points), sizeof(normals), normals);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points)+sizeof(normals), sizeof(tex_coord), tex_coord);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(points)+sizeof(normals)+sizeof(tex_coord), sizeof(tangents), tangents);
+
+	GLuint vPosition = glGetAttribLocation(programs[1], "vPosition");
+	glEnableVertexAttribArray(vPosition);
+	glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, 0);
+
+	GLuint vNormal = glGetAttribLocation(programs[1], "vNormal");
+	glEnableVertexAttribArray(vNormal);
+	glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points)));
+
+	GLuint vTexCoord = glGetAttribLocation(programs[1], "vTexCoord");
+	glEnableVertexAttribArray(vTexCoord);
+	glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points)+sizeof(normals)));
+
+	GLuint vTangents = glGetAttribLocation(programs[1], "vTangent");
+	glEnableVertexAttribArray(vTangents);
+	glVertexAttribPointer(vTangents, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(points)+sizeof(normals)+sizeof(tex_coord)));
+
+	glUniform1i(glGetUniformLocation(programs[1], "textureColor"), 0);
+	glUniform1i(glGetUniformLocation(programs[1], "textureBump"), 1);
+
+}
+
 
 //setup a plane underneath our cube for reference
 void genPlane() {
