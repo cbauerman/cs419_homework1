@@ -8,6 +8,7 @@
 #include <cmath>
 #include <vector>
 #include "openglutl.h"
+#include "SOIL.h"
 
 typedef vec4  color4;
 typedef vec4  point4;
@@ -98,7 +99,7 @@ int xPrev, yPrev;
 #define PLANEAMB vec4(.658824, .658824 , .658824,  1.0)
 #define PLANEDIF vec4(.658824, .658824 , .658824,  1.0)
 #define PLANESPE vec4(1.0, 1.0, 1.0, 1.0)
-#define PLANESHI 100
+#define PLANESHI 10
 
 GLuint cubeVao;
 
@@ -136,18 +137,6 @@ vec3 bumpNormals[TextureSize][TextureSize];
 float data[TextureSize][TextureSize];
 
 //texture cube
-#pragma endregion
-
-#pragma region moving texture
-
-typedef struct particleData {
-	float theta;
-	float velocity;
-}particle;
-
-particle particles[TextureSize][TextureSize];
-
-//moving texture
 #pragma endregion
 
 //GLFW functions
@@ -192,120 +181,12 @@ void switchShaders(int n)
 
 }
 
-//used to recalculate normals based on the data array
-void genNormals()
-{
-	for(unsigned i = 0; i < TextureSize; ++i) {
-		for(unsigned j = 0; j < TextureSize; ++j) {
-
-			if(i == 0)
-				bumpNormals[i][j].x = 1 - data[i + 1][j];
-			else if( i == TextureSize - 1)
-				bumpNormals[i][j].x = data[i - 1][j] - 1;
-			else
-				bumpNormals[i][j].x = data[i - 1][j] - data[i + 1][j];
-
-			if(j == 0)
-				bumpNormals[i][j].x = 1 - data[i][j + 1];
-			else if( j == TextureSize - 1)
-				bumpNormals[i][j].x = data[i][j - 1] - 1;
-			else
-				bumpNormals[i][j].y = data[i][j - 1] - data[i][j + 1];
-
-			bumpNormals[i][j].z = 1.0;
-
-			//encode into rgb
-			bumpNormals[i][j] = 0.5 * normalize(bumpNormals[i][j]) + 0.5;
-		}
-	}
-	
-	glActiveTexture( GL_TEXTURE0 );
-
-	glBindTexture( GL_TEXTURE_2D, textureCube);
-
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	glActiveTexture( GL_TEXTURE1 );
-	
-	glBindTexture( GL_TEXTURE_2D, textureBump);
-
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, bumpNormals);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-}
-
-//used to switch between cube modes i.e. "checkerboard", "random noise" and "water cube"
-void resetData()
-{
-	unsigned i, j;
-
-	//Checkerboard
-	if(cubeMode == 0) {
-		for (i = 0; i < TextureSize; ++i) {
-			for(j = 0; j < TextureSize; ++j) {
-				image[i][j].x = (((i & 0x8) == 0) ^ ((j & 0x8) == 0));
-				image[i][j].y = (((i & 0x8) == 0) ^ ((j & 0x8) == 0));
-				image[i][j].z = (((i & 0x8) == 0) ^ ((j & 0x8) == 0));
-
-				if(bump)
-					data[i][j] = (((i & 0x8) == 0) ^ ((j & 0x8) == 0));
-				else
-					data[i][j] = 1.0;
-			}
-		}
-	//random noise
-	} else if (cubeMode == 1 ) {
-		for (i = 0; i < TextureSize; ++i) {
-			for(j = 0; j < TextureSize; ++j) {
-				float random = Ranf( 0.0f, 1.0f);
-				image[i][j].x = random;
-				image[i][j].y = random;
-				image[i][j].z = random;
-
-				if(bump)
-					data[i][j] = random;
-				else
-					data[i][j] = 1.0;
-				
-			}
-		}
-	// "water" cube
-	} else if (cubeMode == 2 ) {
-		for (i = 0; i < TextureSize; ++i) {
-			for( j = 0; j < TextureSize; ++j) {
-				particles[i][j].theta = Ranf(0, 2 * M_PI);
-				particles[i][j].velocity = Ranf(0.01, 0.1);
-
-				image[i][j].x = 0.0; //Ranf(0.0f, 1.0f);
-				image[i][j].y = Ranf(0.0f, 0.3f);
-				image[i][j].z = Ranf(0.5f, 0.8f);
-
-				if(bump)
-					data[i][j] = sin( particles[i][j].theta);
-				else
-					data[i][j] = 1.0;
-			}
-		}
-	} 
-	genNormals();
-}
-
-
-//TODO get these arguemetns sorted out
-
+//TODO get these arguements sorted out
 vec3 genPoint(int i, int j, int m, int n){
 	return vec3(sin(M_PI * (float(j) / m)) * cos(2 * M_PI * (float(i) / n)),
 				sin(M_PI * (float(j) / m)) * sin(2 * M_PI * (float(i) / n)),
 				cos(M_PI * (float(j) / m)));
 }
-
 
 //create a single layer of the sphere
 void genLayer(int i, int n, int m, int r)
@@ -370,26 +251,28 @@ void genSphere(int m, int n, int r)
 		genLayer(i, n, m, r);
 	}
 	//create texture data
-	resetData();
 	//this is the default color texture
 	glActiveTexture(GL_TEXTURE0);
-	glGenTextures(1, &textureCube);
-	glBindTexture(GL_TEXTURE_2D, textureCube);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
+
+	GLuint tex_ld = SOIL_load_OGL_texture
+		("BeachBallColor.jpg",
+		SOIL_LOAD_AUTO,
+		SOIL_CREATE_NEW_ID,
+		SOIL_FLAG_NTSC_SAFE_RGB
+		);
+
+	if (0 == tex_ld)
+	{
+		printf("SOIL loading error: '%s'\n", SOIL_last_result());
+		exit(EXIT_FAILURE);
+	}
+	
+	glBindTexture(GL_TEXTURE_2D, tex_ld);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	////and this is our bump map
-	//glActiveTexture(GL_TEXTURE1);
-	//glGenTextures(1, &textureBump);
-	//glBindTexture(GL_TEXTURE_2D, textureBump);
-	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, bumpNormals);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//we will use the "texture shader" to draw the cube
 	switchShaders(0);
 
 	glGenVertexArrays(1, &cubeVao);
@@ -411,7 +294,6 @@ void genSphere(int m, int n, int r)
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof_points, &points[0]);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points, sizeof_normals, &normals[0]);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals, sizeof_tex, &tex_coord[0]);
-	//glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals+sizeof_tex, sizeof(tangents), tangents);
 
 	GLuint vPosition = glGetAttribLocation(programs[0], "vPosition");
 	glEnableVertexAttribArray(vPosition);
@@ -425,59 +307,16 @@ void genSphere(int m, int n, int r)
 	glEnableVertexAttribArray(vTexCoord);
 	glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals));
 
-	//GLuint vTangents = glGetAttribLocation(programs[1], "vTangent");
-	//glEnableVertexAttribArray(vTangents);
-	//glVertexAttribPointer(vTangents, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals+sizeof_tex));
-
 	glUniform1i(glGetUniformLocation(programs[0], "textureColor"), 0);
-	//glUniform1i(glGetUniformLocation(programs[0], "textureBump"), 1);
 
 }
 
-//GLUT menu function
-void menu(int id)
-{
-	mode = id;
-
-	if(mode == 5)
-	{
-			at   = at0;
-			eye  = eye0;
-			up   = up0;
-
-			ms = identity();
-			mv = LookAt( eye, at, up );
-
-		for(unsigned i = 0; i < programs.size(); ++i)
-			switchShaders(i);
-	}
-	if(mode == 6){
-		rotateCube = !rotateCube;
-	} else if(mode == 7) {
-		ct = identity();
-	} else if(mode == 8) {
-		cubeMode = 0;
-		resetData();
-	} else if(mode == 9) {
-		cubeMode = 1;
-		resetData();
-	} else if(mode == 10) {
-		cubeMode = 2;
-		resetData();
-	} else if(mode == 11) {
-		exit( EXIT_SUCCESS );
-	} else if(mode == 12) {
-		rotateWithCube = !rotateWithCube;
-	}
-
-	//TODO glutPostRedisplay();
-}
 
 // OpenGL initialization
 void init()
 {
 	// Load shaders and use the resulting shader program
-	GLuint programTemp = InitShader( "vshaderTexture.glsl", "fshaderTexture.glsl");
+	GLuint programTemp = InitShader("vshaderTexture.glsl", "fshaderTexture.glsl");
 	programs.push_back(programTemp);
 
 	//programTemp = InitShader( "vshaderFinalTexture.glsl", "fshaderFinalTexture.glsl");
@@ -486,46 +325,20 @@ void init()
 	//calculate matrices
 	ms = identity();
 	ct = identity();
-	mv = LookAt( eye, at, up );
+	mv = LookAt(eye, at, up);
 
 	//Setup the view volume with Perspective
-	if(projType == ORTHO)
+	if (projType == ORTHO)
 		proj = Ortho(left, right, bottom, top, zoNear, zoFar);
 	else
 		proj = Perspective(fovy, aspect, zpNear, zpFar);
 
 	genSphere(80, 80, 1);
 
-	glEnable( GL_DEPTH_TEST );
+	glEnable(GL_DEPTH_TEST);
 	glShadeModel(GL_FLAT);
 
-	glClearColor( 1.0, 1.0, 1.0, 1.0 );
-
-	//rot_menu = glutCreateMenu(menu);
-	//glutAddMenuEntry("X"                   , 0);
-	//glutAddMenuEntry("Y"                   , 1);
-	//glutAddMenuEntry("Z"                   , 2);
-
-	//scene_menu = glutCreateMenu(menu);
-	//glutAddSubMenu  ("Rotation"            , rot_menu);
-	//glutAddMenuEntry("Translation"         , 3);
-	//glutAddMenuEntry("Dolly"               , 4);
-	//glutAddMenuEntry("Default Camera"      , 5);
-
-	//bump_cube_menu =  glutCreateMenu(menu);
-	//glutAddMenuEntry("Auto-Rotate Cube"    , 6);
-	//glutAddMenuEntry("Rotate camera with Cube", 12);
-	//glutAddMenuEntry("Default Cube"        , 7);
-	//glutAddMenuEntry("Checkerboard Cube"   , 8);
-	//glutAddMenuEntry("Random Noise Cube"   , 9);
-	//glutAddMenuEntry("\"Water\" Cube"      , 10);
-
-	//top_menu = glutCreateMenu(menu);
-	//glutAddSubMenu  ("Scene Transformation", scene_menu  );
-	//glutAddSubMenu	("Cube Options"        , bump_cube_menu  );
-	//glutAddMenuEntry("Close"               , 11);
-
-	//glutAttachMenu(GLUT_RIGHT_BUTTON);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
 }
 
 //GLUT display function
@@ -551,57 +364,7 @@ void display()
 	
 }
 
-//GLUT keyboard function
-//void keyboard( unsigned char key, int x, int y )
-//{
-//	switch( key ) 
-//	{
-//		case 033: // Escape Key
-//		case 'q': 
-//		case 'Q':
-//			exit( EXIT_SUCCESS );
-//			break;
-//		case 'b':
-//		case 'B':
-//			bump = !bump;
-//			resetData();
-//			break;
-//	}
-//			
-//	glutPostRedisplay();
-//}
 	
-//GLUT reshape function
-//void reshape(int w, int h)
-//{
-//	glViewport(0,0, w, h);
-//	float ar = (float)(w)/h, startAr = (float)screenWidth/screenHeight;
-//
-//	screenWidth = w;
-//	screenHeight = h;
-//
-//	if(projType == PERSPEC)
-//	{
-//		proj = Perspective(fovy, ar, zpNear, zpFar);
-//	}
-//	else
-//	{
-//		if(ar < startAr)
-//			proj = Ortho(left, right, left * (GLfloat)h/(GLfloat)w, right * (GLfloat)h/(GLfloat)w, zoNear, zoFar);
-//		else
-//			proj = Ortho(bottom  * (GLfloat)w/(GLfloat)h, top  * (GLfloat)w/(GLfloat)h, bottom, top, zoNear, zoFar);
-//
-//	}
-//
-//	//update our shader uniforms
-//	for(unsigned i = 0; i < programs.size(); ++i)
-//		switchShaders(i);
-//
-//
-//
-//	
-//}
-
 //GLUT mouse function
 void mouse( GLFWwindow *window, int button, int action, int mods)
 {
@@ -677,41 +440,9 @@ void mouseMotion(GLFWwindow* window, double xDub, double yDub)
 
 }
 
-//for cube rotation and water cube effects
+//idle function
 void idle()
 {
-	if(rotateCube) {
-		ct = RotateY(0.005) * ct;
-
-		if(rotateWithCube) {
-			ms = RotateY(0.05) * ms ;
-
-			at   = ms * at0;
-			eye  = ms * eye0;
-			up   = ms * up0;
-
-			mv = LookAt( eye, at, up );
-
-			//update our shader uniforms
-			for(unsigned i = 0; i < programs.size(); ++i)
-				switchShaders(i);
-		}
-	}
-	//update each of our "particles." These correspond to texels on our texture
-	if(cubeMode == 2) {
-		for( unsigned i = 0; i < TextureSize; ++i) {
-			for(unsigned j = 0; j  < TextureSize; ++j) {
-				particles[i][j].theta += particles[i][j].velocity;
-
-				if(particles[i][j].theta > 2 * M_PI)
-					particles[i][j].theta -= 2 * M_PI;
-
-				data[i][j] = sin(particles[i][j].theta);
-				
-			}
-		}
-		genNormals();
-	} 
 
 }
 
