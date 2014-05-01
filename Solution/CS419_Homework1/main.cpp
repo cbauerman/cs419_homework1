@@ -100,7 +100,7 @@ int xPrev, yPrev;
 #define PLANESPE vec4(1.0, 1.0, 1.0, 1.0)
 #define PLANESHI 100
 
-GLuint planeVao, cubeVao;
+GLuint cubeVao;
 
 // object properties
 #pragma endregion
@@ -126,33 +126,14 @@ int NumVertices = 0;
 const int TextureSize = 128;
 vec3 image[TextureSize][TextureSize];
 
-vec4 *points;
-vec3 *normals;
-vec3 *tangents;
-vec2 *tex_coord;
+std::vector<vec4> points;
+std::vector<vec3> normals;
+std::vector<vec3> tangents;
+std::vector<vec2> tex_coord;
 
 vec3 bumpNormals[TextureSize][TextureSize];
 
 float data[TextureSize][TextureSize];
-
-vec4 vertices[] = {
-	vec4(-0.5, -0.5,  0.5, 1.0),
-	vec4(-0.5,  0.5,  0.5, 1.0),
-	vec4( 0.5,  0.5,  0.5, 1.0),
-	vec4( 0.5, -0.5,  0.5, 1.0),
-	vec4(-0.5, -0.5, -0.5, 1.0),
-	vec4(-0.5,  0.5, -0.5, 1.0),
-	vec4( 0.5,  0.5, -0.5, 1.0),
-	vec4( 0.5, -0.5, -0.5, 1.0)};
-
-vec3 vertexNormals[] = {
-	vec3( 1.0,  0.0,  0.0),
-	vec3( 0.0,  1.0,  0.0),
-	vec3( 0.0,  0.0,  1.0),
-	vec3(-1.0,  0.0,  0.0),
-	vec3( 0.0, -1.0,  0.0),
-	vec3( 0.0,  0.0, -1.0)};
-
 
 //texture cube
 #pragma endregion
@@ -319,49 +300,64 @@ void resetData()
 
 //TODO get these arguemetns sorted out
 
-vec4 genPoint(int i, int j, int m, int n){
-	return vec4(sin(M_PI * (j / m)) * cos(2 * M_PI * (i / n)),
-				sin(M_PI * (j / m)) * sin(2 * M_PI * (i / n)),
-				cos(M_PI * (j / m)),
-				1.0);
+vec3 genPoint(int i, int j, int m, int n){
+	return vec3(sin(M_PI * (float(j) / m)) * cos(2 * M_PI * (float(i) / n)),
+				sin(M_PI * (float(j) / m)) * sin(2 * M_PI * (float(i) / n)),
+				cos(M_PI * (float(j) / m)));
 }
 
 
-//create a single side of the cube
+//create a single layer of the sphere
 void genLayer(int i, int n, int m, int r)
 {
-	static int index = 0;
-	//points[index] = vertices[a]; normals[index] = vertexNormals[e]; tangents[index] = vertexNormals[f]; tex_coord[index++] = vec2(0.0, 0.0);
+
 	for (int j = 1; j <= m; ++j){
-		/*
-		 +---+\   Build a triangle segment of the sphere
-		  \  | \
-		   \+---+		
-		*/
-		points[index] = genPoint(i + 1, j, m, n);
-		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z)); 
-		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2, 
-								  .5 - asin(-normals[index].y)/M_PI);
-		points[index] = genPoint(i, j, m, n);
-		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
-		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
-			.5 - asin(-normals[index].y) / M_PI);
-		points[index] = genPoint(i, j - 1, m, n);
-		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
-		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
-			.5 - asin(-normals[index].y) / M_PI);
-		points[index] = genPoint(i + 1, j + 1, m, n);
-		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
-		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
-			.5 - asin(-normals[index].y) / M_PI);
-		points[index] = genPoint(i, j, m, n);
-		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
-		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
-			.5 - asin(-normals[index].y) / M_PI);
-		points[index] = genPoint(i, j - 1, m, n);
-		normals[index] = normalize(vec3(points[index].x, points[index].y, points[index].z));
-		tex_coord[index++] = vec2(.5 + atan2(-normals[index].z, -normals[index].x) / M_PI * 2,
-			.5 - asin(-normals[index].y) / M_PI);
+
+
+		vec3 p = genPoint(i + 1, j, m, n);
+		vec3 nor = normalize(p);
+		points.push_back(vec4(p, 1.0));
+		normals.push_back(nor);
+		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
+			.5 - asin(-nor.y) / M_PI));
+
+		p = genPoint(i, j, m, n);
+		nor = normalize(p);
+		points.push_back(vec4(p, 1.0));
+		normals.push_back(nor);
+		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
+			.5 - asin(-nor.y) / M_PI));
+
+		p = genPoint(i, j - 1, m, n);
+		nor = normalize(p);
+		points.push_back(vec4(p, 1.0));
+		normals.push_back(nor);
+		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
+			.5 - asin(-nor.y) / M_PI));
+
+		p = genPoint(i + 1, j - 1, m, n);
+		nor = normalize(p);
+		points.push_back(vec4(p, 1.0));
+		normals.push_back(nor);
+		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
+			.5 - asin(-nor.y) / M_PI));
+
+
+		p = genPoint(i + 1, j, m, n);
+		nor = normalize(p);
+		points.push_back(vec4(p, 1.0));
+		normals.push_back(nor);
+		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
+			.5 - asin(-nor.y) / M_PI));
+
+
+
+		p = genPoint(i, j - 1, m, n);
+		nor = normalize(p);
+		points.push_back(vec4(p, 1.0));
+		normals.push_back(nor);
+		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
+			.5 - asin(-nor.y) / M_PI));
 	}
 
 
@@ -369,28 +365,21 @@ void genLayer(int i, int n, int m, int r)
 
 void genSphere(int m, int n, int r)
 {
-	//create sphere data;
-	int NumVertices = 2 * n * m;
 
-	points = new vec4[NumVertices];
-	normals = new vec3[NumVertices];
-	tangents = new vec3[NumVertices];
-	tex_coord = new vec2[NumVertices];
-
-	for (int i = 0; i < n - 1; ++i){
+	for (int i = 0; i < n; ++i){
 		genLayer(i, n, m, r);
 	}
 	//create texture data
-	//resetData();
+	resetData();
 	//this is the default color texture
-	//glActiveTexture(GL_TEXTURE0);
-	//glGenTextures(1, &textureCube);
-	//glBindTexture(GL_TEXTURE_2D, textureCube);
-	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &textureCube);
+	glBindTexture(GL_TEXTURE_2D, textureCube);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureSize, TextureSize, 0, GL_RGB, GL_FLOAT, image);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	////and this is our bump map
 	//glActiveTexture(GL_TEXTURE1);
 	//glGenTextures(1, &textureBump);
@@ -401,23 +390,27 @@ void genSphere(int m, int n, int r)
 	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	//we will use the "texture shader" to draw the cube
-	//switchShaders(0);
+	switchShaders(0);
 
 	glGenVertexArrays(1, &cubeVao);
 	glBindVertexArray(cubeVao);
 
 
-	int sizeof_points = NumVertices * sizeof(vec4);
-	int sizeof_normals = NumVertices * sizeof(vec3);
-	int sizeof_tex = NumVertices * sizeof(vec2);
+	//get arrays from vector data structures
+
+	NumVertices = points.size();
+
+	int sizeof_points = points.size() * sizeof(vec4);
+	int sizeof_normals = normals.size() * sizeof(vec3);
+	int sizeof_tex = tex_coord.size() * sizeof(vec2);
 
 	GLuint buffer;
 	glGenBuffers(1, &buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals, NULL, GL_STATIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof_points, points);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points, sizeof_normals, normals);
-	//glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals, sizeof_tex, tex_coord);
+	glBufferData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals+sizeof_tex, NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof_points, &points[0]);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points, sizeof_normals, &normals[0]);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals, sizeof_tex, &tex_coord[0]);
 	//glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals+sizeof_tex, sizeof(tangents), tangents);
 
 	GLuint vPosition = glGetAttribLocation(programs[0], "vPosition");
@@ -428,63 +421,17 @@ void genSphere(int m, int n, int r)
 	glEnableVertexAttribArray(vNormal);
 	glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points));
 
-	//GLuint vTexCoord = glGetAttribLocation(programs[0], "vTexCoord");
-	//glEnableVertexAttribArray(vTexCoord);
-	//glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals));
+	GLuint vTexCoord = glGetAttribLocation(programs[0], "vTexCoord");
+	glEnableVertexAttribArray(vTexCoord);
+	glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals));
 
 	//GLuint vTangents = glGetAttribLocation(programs[1], "vTangent");
 	//glEnableVertexAttribArray(vTangents);
 	//glVertexAttribPointer(vTangents, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals+sizeof_tex));
 
-	//glUniform1i(glGetUniformLocation(programs[0], "textureColor"), 0);
+	glUniform1i(glGetUniformLocation(programs[0], "textureColor"), 0);
 	//glUniform1i(glGetUniformLocation(programs[0], "textureBump"), 1);
 
-}
-
-
-//setup a plane underneath our cube for reference
-void genPlane() {
-
-	vec4 planePoints[6];
-	vec3 planeNormals[6];
-
-	planePoints[0] = vec4( 5.0, -1.0,  5.0, 1.0);
-	planePoints[1] = vec4( 5.0, -1.0, -5.0, 1.0);
-	planePoints[2] = vec4(-5.0, -1.0,  5.0, 1.0);
-	planePoints[3] = vec4( 5.0, -1.0, -5.0, 1.0);
-	planePoints[4] = vec4(-5.0, -1.0,  5.0, 1.0);
-	planePoints[5] = vec4(-5.0, -1.0, -5.0, 1.0);
-
-	planeNormals[0] = vec3(0.0, 1.0, 0.0);
-	planeNormals[1] = vec3(0.0, 1.0, 0.0);
-	planeNormals[2] = vec3(0.0, 1.0, 0.0);
-	planeNormals[3] = vec3(0.0, 1.0, 0.0);
-	planeNormals[4] = vec3(0.0, 1.0, 0.0);
-	planeNormals[5] = vec3(0.0, 1.0, 0.0);
-
-	//we will use the "regular shader" to draw the cube
-	switchShaders(0);
-
-	glGenVertexArrays(1, &planeVao);
-	glBindVertexArray(planeVao);
-
-	GLuint buffer;
-
-	glGenBuffers(1, &buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(planePoints) + sizeof(planeNormals), NULL, GL_STATIC_DRAW);
-
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(planePoints), planePoints);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(planePoints), sizeof(planeNormals), planeNormals);
-
-
-	GLuint vPosition = glGetAttribLocation (programs[0], "vPosition" );
-	glEnableVertexAttribArray(vPosition);
-	glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, 0 );
-
-	GLuint vNormal = glGetAttribLocation (programs[0], "vNormal" );
-	glEnableVertexAttribArray(vNormal);
-	glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(planePoints)) );
 }
 
 //GLUT menu function
@@ -530,7 +477,7 @@ void menu(int id)
 void init()
 {
 	// Load shaders and use the resulting shader program
-	GLuint programTemp = InitShader( "vshaderFinal.glsl", "fshaderFinal.glsl");
+	GLuint programTemp = InitShader( "vshaderTexture.glsl", "fshaderTexture.glsl");
 	programs.push_back(programTemp);
 
 	//programTemp = InitShader( "vshaderFinalTexture.glsl", "fshaderFinalTexture.glsl");
@@ -547,8 +494,7 @@ void init()
 	else
 		proj = Perspective(fovy, aspect, zpNear, zpFar);
 
-	genPlane();
-	genSphere(20, 20, 1);
+	genSphere(80, 80, 1);
 
 	glEnable( GL_DEPTH_TEST );
 	glShadeModel(GL_FLAT);
@@ -586,29 +532,18 @@ void init()
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	switchShaders(0);
-	glBindVertexArray( planeVao );
 
 	color4 ambient_product  = LIGHTAMB * PLANEAMB;
 	color4 diffuse_product  = LIGHTDIF * PLANEDIF;
 	color4 specular_product = LIGHTSPE * PLANESPE;
 
-	glUniform1f       ( Shininess, PLANESHI );
-	glUniform4fv      ( AmbientProduct,  1, ambient_product  );
-	glUniform4fv      ( DiffuseProduct,  1, diffuse_product  );
-	glUniform4fv      ( SpecularProduct, 1, specular_product );
-	glUniformMatrix4fv( Trans, 1, GL_TRUE, identity() );
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	switchShaders(0);
 	glBindVertexArray(cubeVao);
-	glUniform4fv( AmbientProduct,  1, LIGHTAMB  );
-	glUniform4fv( DiffuseProduct,  1, LIGHTDIF  );
-	glUniform4fv( SpecularProduct, 1, LIGHTSPE  );
+	glUniform4fv(AmbientProduct, 1, ambient_product);
+	glUniform4fv(DiffuseProduct, 1, diffuse_product);
+	glUniform4fv(SpecularProduct, 1, specular_product);
 	glUniform1f( Shininess, 300 );
-	glUniformMatrix4fv( Trans, 1, GL_TRUE, ct );
+	glUniformMatrix4fv(Trans, 1, GL_TRUE, identity());
 
 	glDrawArrays(GL_TRIANGLES, 0 , NumVertices);
 
@@ -668,28 +603,40 @@ void display()
 //}
 
 //GLUT mouse function
-//void mouse( int button, int state, int x, int y)
-//{
-//	y = screenHeight - y;
-//
-//	
-//	if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
-//		buttonHeld = true;
-//	else
-//		buttonHeld = false;
-//
-//
-//	xPrev = x;
-//	yPrev = y;
-//
-//	
-//
-//	
-//}
+void mouse( GLFWwindow *window, int button, int action, int mods)
+{
+	double xDub = 0;
+	double yDub = 0;
+
+	glfwGetCursorPos(window, &xDub, &yDub);
+
+	int x = (int)xDub;
+	int y = (int)yDub;
+
+	y = screenHeight - y;
+
+	
+	if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+		buttonHeld = true;
+	else
+		buttonHeld = false;
+
+
+	xPrev = (int)x;
+	yPrev = (int)y;
+
+	
+
+	
+}
 
 //GLUT mouseMotion function
-void mouseMotion(int x, int y)
+void mouseMotion(GLFWwindow* window, double xDub, double yDub)
 {
+
+	int x = (int)xDub;
+	int y = (int)yDub;
+
 	y = screenHeight - y;
 	mat4 temp = identity();
 
@@ -789,7 +736,8 @@ int main( int argc, char **argv )
 
 	glfwMakeContextCurrent(window);
 	glfwSetKeyCallback(window, key_callback);
-
+	glfwSetMouseButtonCallback(window, mouse);
+	glfwSetCursorPosCallback(window, mouseMotion);
 
 	GLint GlewInitResult = glewInit();
 	if (GLEW_OK != GlewInitResult)
