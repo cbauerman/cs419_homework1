@@ -1,10 +1,3 @@
-//
-//  Display a scene comprised of various .obj files
-//
-//  Light and material properties are sent to the shader as uniform
-//    variables.  Vertex positions and normals are sent after each
-//    rotation.
-
 #include <cmath>
 #include <vector>
 #include "openglutl.h"
@@ -33,15 +26,15 @@ GLfloat zpNear = 0.1, zpFar = 15;
 // Locations of uniform variables in shader program
 GLuint ModelView;
 GLuint Projection;
-GLuint Trans;
 GLuint AmbientProduct;
 GLuint DiffuseProduct;
 GLuint SpecularProduct;
 GLuint LightPosition;
 GLuint Shininess;
+GLuint Rot;
 
-//vector to hold programs
-std::vector<GLuint> programs;
+//program
+GLuint program;
 
 //Gluints
 #pragma endregion
@@ -49,7 +42,9 @@ std::vector<GLuint> programs;
 #pragma region matrices
 
 //Model-view and projection matrices
-mat4  mv, proj, ms, ct;
+mat4  mv, proj;
+
+vec4 rot;
 
 //matrices
 #pragma endregion 
@@ -60,10 +55,6 @@ point4  eye = point4(0.0, 0.0, 2.0, 1.0);
 point4  at  = point4(0.0, 0.0, 0.0, 1.0);
 vec4    up  = vec4  (0.0, 1.0, 0.0, 0.0);
 
-point4 eye0 = eye;
-point4 at0  = at;
-vec4 up0    = up;
-
 projection projType = PERSPEC;
 
 //camera
@@ -73,23 +64,13 @@ projection projType = PERSPEC;
 
 bool buttonHeld = false;
 
-int mode = 0; //default mode
-
-bool bump = true;
-bool rotateCube = true;
-bool rotateWithCube = false;
-int cubeMode = 0;
-
-//menu ids
-int top_menu;
-int scene_menu;
-int	rot_menu;
-int bump_cube_menu;
+bool velocity = false;
 
 int screenWidth  = 512;
 int screenHeight = 512;
 
-int xPrev, yPrev;
+double xPrev, yPrev;
+double xCur, yCur;
 
 //ui elements
 #pragma endregion 
@@ -101,7 +82,7 @@ int xPrev, yPrev;
 #define PLANESPE vec4(1.0, 1.0, 1.0, 1.0)
 #define PLANESHI 10
 
-GLuint cubeVao;
+GLuint sphereVao;
 
 // object properties
 #pragma endregion
@@ -118,25 +99,15 @@ point4 lightPos =  point4( 0.0, 0.0, 2.0, 1.0 );
 //lighting
 #pragma endregion 
 
-#pragma region texture cube
-
-GLuint textureBump;
-GLuint textureCube;
+#pragma region sphere
 
 int NumVertices = 0;
-const int TextureSize = 128;
-vec3 image[TextureSize][TextureSize];
 
 std::vector<vec4> points;
 std::vector<vec3> normals;
-std::vector<vec3> tangents;
 std::vector<vec2> tex_coord;
 
-vec3 bumpNormals[TextureSize][TextureSize];
-
-float data[TextureSize][TextureSize];
-
-//texture cube
+//sphere
 #pragma endregion
 
 //GLFW functions
@@ -150,105 +121,39 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 		glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
-//for random numbers
-float Ranf( float low, float high )
-{
-	long random();		// returns integer 0 - TOP
-	float r;		// random number	
-
-	r = (float)rand();
-
-	return(   low  +  r * ( high - low ) / (float)RAND_MAX   );
-}
-
-//used to 
-void switchShaders(int n)
-{
-	glUseProgram(programs[n]);
-
-	ModelView       = glGetUniformLocation( programs[n], "ModelView"      );
-	Projection      = glGetUniformLocation( programs[n], "Projection"     );
-	Trans           = glGetUniformLocation( programs[n], "Trans"          );
-	AmbientProduct  = glGetUniformLocation( programs[n], "AmbientProduct" );
-	DiffuseProduct  = glGetUniformLocation( programs[n], "DiffuseProduct" );
-	SpecularProduct = glGetUniformLocation( programs[n], "SpecularProduct");
-	LightPosition   = glGetUniformLocation( programs[n], "LightPosition"  );
-	Shininess       = glGetUniformLocation( programs[n], "Shininess"      );
-
-	glUniform4fv( LightPosition, 1, lightPos);
-	glUniformMatrix4fv( ModelView, 1, GL_TRUE, mv );
-	glUniformMatrix4fv( Projection, 1, GL_TRUE, proj );
-
-}
 
 //TODO get these arguements sorted out
-vec3 genPoint(int i, int j, int m, int n){
-	return vec3(sin(M_PI * (float(j) / m)) * cos(2 * M_PI * (float(i) / n)),
+void genPoint(int i, int j, int m, int n){
+	vec3 p = vec3(sin(M_PI * (float(j) / m)) * cos(2 * M_PI * (float(i) / n)),
 				sin(M_PI * (float(j) / m)) * sin(2 * M_PI * (float(i) / n)),
 				cos(M_PI * (float(j) / m)));
-}
-
-//create a single layer of the sphere
-void genLayer(int i, int n, int m, int r)
-{
-
-	for (int j = 1; j <= m; ++j){
-
-
-		vec3 p = genPoint(i + 1, j, m, n);
-		vec3 nor = normalize(p);
-		points.push_back(vec4(p, 1.0));
-		normals.push_back(nor);
-		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
-			.5 - asin(-nor.y) / M_PI));
-
-		p = genPoint(i, j, m, n);
-		nor = normalize(p);
-		points.push_back(vec4(p, 1.0));
-		normals.push_back(nor);
-		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
-			.5 - asin(-nor.y) / M_PI));
-
-		p = genPoint(i, j - 1, m, n);
-		nor = normalize(p);
-		points.push_back(vec4(p, 1.0));
-		normals.push_back(nor);
-		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
-			.5 - asin(-nor.y) / M_PI));
-
-		p = genPoint(i + 1, j - 1, m, n);
-		nor = normalize(p);
-		points.push_back(vec4(p, 1.0));
-		normals.push_back(nor);
-		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
-			.5 - asin(-nor.y) / M_PI));
-
-
-		p = genPoint(i + 1, j, m, n);
-		nor = normalize(p);
-		points.push_back(vec4(p, 1.0));
-		normals.push_back(nor);
-		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
-			.5 - asin(-nor.y) / M_PI));
-
-
-
-		p = genPoint(i, j - 1, m, n);
-		nor = normalize(p);
-		points.push_back(vec4(p, 1.0));
-		normals.push_back(nor);
-		tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / M_PI * 2,
-			.5 - asin(-nor.y) / M_PI));
-	}
-
+	vec3 nor = normalize(p);
+	points.push_back(vec4(p, 1.0));
+	normals.push_back(nor);
+	tex_coord.push_back(vec2(.5 + atan2(-nor.z, -nor.x) / (M_PI * 2),
+		.5 - asin(-nor.y) / M_PI));
 
 }
 
+//Create a sphere from long. (m) and lang. (n) parameters
 void genSphere(int m, int n, int r)
 {
 
 	for (int i = 0; i < n; ++i){
-		genLayer(i, n, m, r);
+		for (int j = 1; j <= m; ++j){
+
+			genPoint(i + 1, j, m, n);
+
+			genPoint(i, j, m, n);
+
+			genPoint(i, j - 1, m, n);
+
+			genPoint(i + 1, j - 1, m, n);
+
+			genPoint(i + 1, j, m, n);
+
+			genPoint(i, j - 1, m, n);
+		}
 	}
 	//create texture data
 	//this is the default color texture
@@ -273,10 +178,9 @@ void genSphere(int m, int n, int r)
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	switchShaders(0);
 
-	glGenVertexArrays(1, &cubeVao);
-	glBindVertexArray(cubeVao);
+	glGenVertexArrays(1, &sphereVao);
+	glBindVertexArray(sphereVao);
 
 
 	//get arrays from vector data structures
@@ -295,19 +199,19 @@ void genSphere(int m, int n, int r)
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points, sizeof_normals, &normals[0]);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof_points+sizeof_normals, sizeof_tex, &tex_coord[0]);
 
-	GLuint vPosition = glGetAttribLocation(programs[0], "vPosition");
+	GLuint vPosition = glGetAttribLocation(program, "vPosition");
 	glEnableVertexAttribArray(vPosition);
 	glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
-	GLuint vNormal = glGetAttribLocation(programs[0], "vNormal");
+	GLuint vNormal = glGetAttribLocation(program, "vNormal");
 	glEnableVertexAttribArray(vNormal);
 	glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points));
 
-	GLuint vTexCoord = glGetAttribLocation(programs[0], "vTexCoord");
+	GLuint vTexCoord = glGetAttribLocation(program, "vTexCoord");
 	glEnableVertexAttribArray(vTexCoord);
 	glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof_points+sizeof_normals));
 
-	glUniform1i(glGetUniformLocation(programs[0], "textureColor"), 0);
+	glUniform1i(glGetUniformLocation(program, "textureColor"), 0);
 
 }
 
@@ -316,16 +220,19 @@ void genSphere(int m, int n, int r)
 void init()
 {
 	// Load shaders and use the resulting shader program
-	GLuint programTemp = InitShader("vshaderTexture.glsl", "fshaderTexture.glsl");
-	programs.push_back(programTemp);
+	program = InitShader("vshaderTexture.glsl", "fshaderTexture.glsl");
 
-	//programTemp = InitShader( "vshaderFinalTexture.glsl", "fshaderFinalTexture.glsl");
-	//programs.push_back(programTemp);
+	glUseProgram(program);
 
-	//calculate matrices
-	ms = identity();
-	ct = identity();
-	mv = LookAt(eye, at, up);
+	ModelView = glGetUniformLocation(program, "ModelView");
+	Projection = glGetUniformLocation(program, "Projection");
+	AmbientProduct = glGetUniformLocation(program, "AmbientProduct");
+	DiffuseProduct = glGetUniformLocation(program, "DiffuseProduct");
+	SpecularProduct = glGetUniformLocation(program, "SpecularProduct");
+	LightPosition = glGetUniformLocation(program, "LightPosition");
+	Shininess = glGetUniformLocation(program, "Shininess");
+	Rot = glGetUniformLocation(program, "Rot");
+
 
 	//Setup the view volume with Perspective
 	if (projType == ORTHO)
@@ -333,7 +240,21 @@ void init()
 	else
 		proj = Perspective(fovy, aspect, zpNear, zpFar);
 
-	genSphere(80, 80, 1);
+	//calculate matrices
+	mv = LookAt(eye, at, up);
+
+	rot = vec4(1, 0, 0, 0);
+
+
+	glUniform4fv(LightPosition, 1, lightPos);
+	glUniformMatrix4fv(ModelView, 1, GL_TRUE, mv);
+	glUniformMatrix4fv(Projection, 1, GL_TRUE, proj);
+	glUniform4fv(AmbientProduct, 1, LIGHTAMB);
+	glUniform4fv(DiffuseProduct, 1, LIGHTDIF);
+	glUniform4fv(SpecularProduct, 1, LIGHTSPE);
+	glUniform1f(Shininess, 30000);
+
+	genSphere(40, 80, 1);
 
 	glEnable(GL_DEPTH_TEST);
 	glShadeModel(GL_FLAT);
@@ -341,22 +262,14 @@ void init()
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 }
 
-//GLUT display function
+//Display function
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	switchShaders(0);
 
-	color4 ambient_product  = LIGHTAMB * PLANEAMB;
-	color4 diffuse_product  = LIGHTDIF * PLANEDIF;
-	color4 specular_product = LIGHTSPE * PLANESPE;
 
-	glBindVertexArray(cubeVao);
-	glUniform4fv(AmbientProduct, 1, ambient_product);
-	glUniform4fv(DiffuseProduct, 1, diffuse_product);
-	glUniform4fv(SpecularProduct, 1, specular_product);
-	glUniform1f( Shininess, 300 );
-	glUniformMatrix4fv(Trans, 1, GL_TRUE, identity());
+	glBindVertexArray(sphereVao);
+	glUniform4fv(Rot, 1, rot);
 
 	glDrawArrays(GL_TRIANGLES, 0 , NumVertices);
 
@@ -364,86 +277,91 @@ void display()
 	
 }
 
-	
-//GLUT mouse function
-void mouse( GLFWwindow *window, int button, int action, int mods)
+//GLFW mouse function
+void mouseButton( GLFWwindow *window, int button, int action, int mods)
 {
-	double xDub = 0;
-	double yDub = 0;
-
-	glfwGetCursorPos(window, &xDub, &yDub);
-
-	int x = (int)xDub;
-	int y = (int)yDub;
-
-	y = screenHeight - y;
-
-	
-	if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	glfwGetCursorPos(window, &xCur, &yCur);
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS){
 		buttonHeld = true;
-	else
-		buttonHeld = false;
-
-
-	xPrev = (int)x;
-	yPrev = (int)y;
-
-	
-
-	
-}
-
-//GLUT mouseMotion function
-void mouseMotion(GLFWwindow* window, double xDub, double yDub)
-{
-
-	int x = (int)xDub;
-	int y = (int)yDub;
-
-	y = screenHeight - y;
-	mat4 temp = identity();
-
-	//Camera Dolly
-	if(buttonHeld && mode == 4)
-		temp = Translate(0, 0, (yPrev - y) / (float)screenHeight);
-	//Camera translate
-	else if(buttonHeld && mode == 3)
-		temp = Translate((xPrev - x) / (float)screenHeight, (yPrev - y) / (float)screenHeight, 0);
-	//Camera Rotate Z
-	else if(buttonHeld && mode == 2)
-		temp = RotateZ((x - xPrev));
-	//Camera Rotate Y
-	else if(buttonHeld && mode == 1)
-		temp = RotateY((x - xPrev));
-	//Camera Rotate X
-	else if(buttonHeld && mode == 0) 
-		temp = RotateX((yPrev - y));
-
-
-	if(buttonHeld && (mode == 0 || mode == 1 || mode == 2 || mode == 3 || mode == 4)) {
-
-		ms = ms * temp;
-
-		at   = ms * at0;
-		eye  = ms * eye0;
-		up   = ms * up0;
-
-		mv = LookAt( eye, at, up );
-
-		//update our shader uniforms
-		for(unsigned i = 0; i < programs.size(); ++i)
-			switchShaders(i);
+		velocity = false;
 	}
+	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE){
+		buttonHeld = false;
+		velocity = true;
+	}
+}
 
-	xPrev = x;
-	yPrev = y;
+vec4 q_multiply(vec4 a, vec4 b){
+
+	float vDot = dot(vec3(a.y, a.z, a.w), vec3(b.y, b.z, b.w));
+	vec3 vCross = cross(vec3(a.y, a.z, a.w), vec3(b.y, b.z, b.w));
+	vec3 v1 = a.x * vec3(b.y, b.z, b.w);
+	vec3 v2 = b.x * vec3(a.y, a.z, a.w);
+	return vec4(a.x * b.x - vDot, vCross.x + v1.x + v2.x,
+							      vCross.y + v1.y + v2.y, 
+								  vCross.z + v1.z + v2.z );
+}
+
+
+vec3 hemisphereMap(double x, double y){
+	double xAdj = (2 * x - screenWidth) / screenWidth;
+	double yAdj = (screenHeight - 2 * y) / screenHeight;
+	float len = sqrt(xAdj*xAdj + yAdj*yAdj);
+	len = (len < 1.0) ? len : 1.0;
+	return normalize(vec3(xAdj, yAdj, sqrt(1.001 - len * len)));
+
 
 }
 
-//idle function
+void rotate(double x0, double y0, double x1, double y1, double speed){
+	vec3 init = hemisphereMap(x0, y0);
+	vec3 fin = hemisphereMap(x1, y1);
+
+	vec3 n = cross(init, fin);
+
+	vec3 axis = normalize(n);
+	float mag = speed * length(n);
+
+
+	float s = sin(mag / 2);
+	vec4 nRot = vec4(cos(mag / 2), axis.x * s, axis.y * s, axis.z * s);
+	rot = q_multiply(nRot, rot);
+}
+
+//GLFW mouseMotion function
+void mouseMotion(GLFWwindow* window, double xPos, double yPos)
+{
+	if(buttonHeld) {
+		xPrev = xCur;
+		yPrev = yCur;
+		rotate(xPrev, yPrev, xPos, yPos, 1.0);
+		xCur = xPos;
+		yCur = yPos;
+	}
+}
+
+//GLFW resize func
+void windowFunc(GLFWwindow*, int w, int h){
+	glViewport(0, 0, w, h);
+
+	float ar = (float)(w) / h;
+	screenHeight = h;
+	screenWidth = w;
+
+
+	proj = Perspective(fovy, ar, zpNear, zpFar);
+	glUniformMatrix4fv(Projection, 1, GL_TRUE, proj);
+
+
+
+}
+
+//GLFW idle function
 void idle()
 {
-
+	if (velocity){
+		rotate(xPrev, yPrev, xCur, yCur, 0.01);
+	}
 }
 
 //main function
@@ -457,7 +375,7 @@ int main( int argc, char **argv )
 	if (!glfwInit())
 		exit(EXIT_FAILURE);
 
-	window = glfwCreateWindow(640, 640, "Caleb B : Homework 1", NULL, NULL);
+	window = glfwCreateWindow(screenHeight, screenWidth, "Caleb Bauermeister : Homework 1", NULL, NULL);
 
 	if (!window)
 	{
@@ -467,8 +385,9 @@ int main( int argc, char **argv )
 
 	glfwMakeContextCurrent(window);
 	glfwSetKeyCallback(window, key_callback);
-	glfwSetMouseButtonCallback(window, mouse);
+	glfwSetMouseButtonCallback(window, mouseButton);
 	glfwSetCursorPosCallback(window, mouseMotion);
+	glfwSetWindowSizeCallback(window, windowFunc);
 
 	GLint GlewInitResult = glewInit();
 	if (GLEW_OK != GlewInitResult)
@@ -480,7 +399,6 @@ int main( int argc, char **argv )
 	init();
 
 	while (!glfwWindowShouldClose(window)){
-
 
 		idle();
 		display();

@@ -69,11 +69,7 @@
     <ClCompile Include="openglutl.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="fshaderFinal.glsl" />
-    <None Include="fshaderFinalTexture.glsl" />
     <None Include="fshaderTexture.glsl" />
-    <None Include="vshaderFinal.glsl" />
-    <None Include="vshaderFinalTexture.glsl" />
     <None Include="vshaderTexture.glsl" />
   </ItemGroup>
   <ItemGroup>

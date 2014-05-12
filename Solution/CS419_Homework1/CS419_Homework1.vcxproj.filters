@@ -23,18 +23,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="fshaderFinal.glsl">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="fshaderFinalTexture.glsl">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="vshaderFinal.glsl">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="vshaderFinalTexture.glsl">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="fshaderTexture.glsl">
       <Filter>Source Files</Filter>
     </None>
